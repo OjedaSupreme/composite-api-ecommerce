@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: composite-api
+
+# URLs de los servicios consumidos por la Composite API
+services:
+  catalog-url: http://localhost:8081
+  inventory-url: http://localhost:8082
+  exchange-primary-url: https://api.frankfurter.app
+  exchange-fallback-url: https://open.er-api.com
+  target-currency: MXN
+  internal-timeout-ms: 2000
+  external-timeout-ms: 4000
+
+logging:
+  level:
+    mx.edu.utch: INFO
