@@ -1,0 +1,31 @@
+{
+  "info": {
+    "name": "Composite API - E-Commerce (UTCH U3)",
+    "description": "Pruebas de integracion: microservicios propios, API externa y Composite API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    { "name": "1. Catalogo - GET producto P-101",
+      "request": { "method": "GET", "url": "http://localhost:8081/microservices/products/P-101" } },
+    { "name": "1b. Catalogo - GET lista de productos",
+      "request": { "method": "GET", "url": "http://localhost:8081/microservices/products" } },
+    { "name": "2. Inventario - GET stock P-101",
+      "request": { "method": "GET", "url": "http://localhost:8082/microservices/inventory/P-101" } },
+    { "name": "3. API externa - Frankfurter USD a MXN",
+      "request": { "method": "GET", "url": "https://api.frankfurter.app/latest?from=USD&to=MXN" } },
+    { "name": "3b. API externa - ExchangeRate-API (respaldo)",
+      "request": { "method": "GET", "url": "https://open.er-api.com/v6/latest/USD" } },
+    { "name": "4. Composite API - resumen P-101",
+      "request": { "method": "GET", "url": "http://localhost:8080/api/v1/product-summary/P-101" } },
+    { "name": "4b. Composite API - ruta alterna /products/{id}/summary",
+      "request": { "method": "GET", "url": "http://localhost:8080/api/v1/products/P-104/summary" } },
+    { "name": "5. Error - producto inexistente (404)",
+      "request": { "method": "GET", "url": "http://localhost:8080/api/v1/product-summary/P-999" } },
+    { "name": "6a. Resiliencia - activar falla de inventario",
+      "request": { "method": "POST", "url": "http://localhost:8082/microservices/inventory/chaos?enabled=true" } },
+    { "name": "6b. Resiliencia - resumen con inventario caido (PARTIAL_SUCCESS)",
+      "request": { "method": "GET", "url": "http://localhost:8080/api/v1/product-summary/P-101" } },
+    { "name": "6c. Resiliencia - restaurar inventario",
+      "request": { "method": "POST", "url": "http://localhost:8082/microservices/inventory/chaos?enabled=false" } }
+  ]
+}
