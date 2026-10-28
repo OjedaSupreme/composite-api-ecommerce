@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-Commerce Dashboard · Composite API</title>
+<style>
+  :root {
+    --bg: #f4f6f5; --card: #ffffff; --ink: #18211d; --muted: #5d6b64; --line: #dfe5e2;
+    --brand: #0b7a4b; --brand-2: #0f9a5f; --warn: #b26a00; --warn-bg: #fff4e0;
+    --danger: #b3261e; --danger-bg: #fdecea; --ok-bg: #e5f5ec;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--brand); color: #fff; padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  header span { font-size: 13px; opacity: .85; }
+  main { max-width: 1100px; margin: 24px auto; padding: 0 16px; display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .product-btn { width: 100%; text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; font-size: 14px; }
+  .product-btn small { display: block; color: var(--muted); }
+  .product-btn.active, .product-btn:hover { border-color: var(--brand); background: var(--ok-bg); }
+  .search { display: flex; gap: 6px; margin-top: 10px; }
+  .search input { flex: 1; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+  .search button, .primary { background: var(--brand); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+  .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .title-row h3 { margin: 0; font-size: 24px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .SUCCESS, .IN_STOCK { background: var(--ok-bg); color: var(--brand); }
+  .PARTIAL_SUCCESS, .LOW_STOCK, .UNKNOWN { background: var(--warn-bg); color: var(--warn); }
+  .ERROR, .OUT_OF_STOCK { background: var(--danger-bg); color: var(--danger); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 18px 0; }
+  .kpi { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .kpi .label { font-size: 12px; color: var(--muted); }
+  .kpi .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .desc { line-height: 1.5; }
+  .warnings { background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+  pre { background: #10231a; color: #c9f3dc; border-radius: 10px; padding: 14px; font-size: 12.5px; overflow-x: auto; }
+  .flow { font-size: 12.5px; color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: 40px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>E-Commerce Gateway &amp; Dashboard</h1>
+  <span>Composite API · GET /api/v1/product-summary/{id}</span>
+</header>
+<main>
+  <aside class="panel">
+    <h2>Productos</h2>
+    <div id="product-list"><div class="empty">Cargando catálogo…</div></div>
+    <div class="search">
+      <input id="custom-id" placeholder="ID p. ej. P-999" aria-label="ID de producto">
+      <button onclick="loadSummary(document.getElementById('custom-id').value)">Buscar</button>
+    </div>
+    <p class="flow">Una sola petición del navegador → la Composite API consulta en paralelo Catálogo (:8081), Inventario (:8082) y la API externa de divisas.</p>
+  </aside>
+  <section class="panel" id="detail">
+    <div class="empty">Selecciona un producto para ver su resumen consolidado.</div>
+  </section>
+</main>
+<script>
+  const fmt = (n, cur) => n == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: cur }).format(n);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  async function loadProducts() {
+    const list = document.getElementById('product-list');
+    try {
+      const res = await fetch('/api/v1/products');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const products = await res.json();
+      list.innerHTML = products.map(p =>
+        `<button class="product-btn" data-id="${esc(p.id)}" onclick="loadSummary('${esc(p.id)}')">
+           ${esc(p.name)}<small>${esc(p.id)} · ${esc(p.category)}</small></button>`).join('');
+      if (products.length) loadSummary(products[0].id);
+    } catch (e) {
+      list.innerHTML = `<div class="warnings">No se pudo cargar el catálogo (${esc(e.message)}).</div>`;
+    }
+  }
+
+  async function loadSummary(id) {
+    id = (id || '').trim();
+    if (!id) return;
+    document.querySelectorAll('.product-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id.toUpperCase()));
+    const detail = document.getElementById('detail');
+    detail.innerHTML = '<div class="empty">Consultando Composite API…</div>';
+    const t0 = performance.now();
+    try {
+      const res = await fetch('/api/v1/product-summary/' + encodeURIComponent(id));
+      const data = await res.json();
+      const clientMs = Math.round(performance.now() - t0);
+      if (!res.ok) {
+        detail.innerHTML = `<div class="title-row"><h3>${esc(id)}</h3><span class="badge ERROR">${esc(data.error_code || 'ERROR')}</span></div>
+          <p class="desc">${esc(data.message)}</p><pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
+        return;
+      }
+      detail.innerHTML = `
+        <div class="title-row">
+          <div><h3>${esc(data.title)}</h3><div class="meta">${esc(data.product_id)} · ${esc(data.brand)} · ${esc(data.category)}</div></div>
+          <span class="badge ${esc(data.status)}">${esc(data.status)}</span>
+        </div>
+        <div class="grid">
+          <div class="kpi"><div class="label">Precio base</div><div class="value">${fmt(data.price_usd, 'USD')}</div></div>
+          <div class="kpi"><div class="label">Precio local</div><div class="value">${fmt(data.price_mxn, 'MXN')}</div></div>
+          <div class="kpi"><div class="label">Existencias</div><div class="value">${data.available_units ?? '—'}</div>
+               <span class="badge ${esc(data.stock_status)}">${esc(data.stock_status)}</span></div>
+          <div class="kpi"><div class="label">Entrega estimada</div><div class="value">${data.estimated_delivery_days != null ? data.estimated_delivery_days + ' días' : '—'}</div></div>
+        </div>
+        <p class="desc">${esc(data.description)}</p>
+        <p class="meta">Almacén: ${esc(data.warehouse || 'no disponible')} ${data.location ? '· ' + esc(data.location) : ''}</p>
+        <p class="meta">Tipo de cambio: ${data.exchange_rate ?? '—'} MXN por USD · Fuente: ${esc(data.currency_conversion_source)} · Fecha: ${esc(data.exchange_rate_date || '—')}</p>
+        <p class="meta">Tiempo de orquestación en servidor: ${data.response_time_ms} ms · Tiempo total en el navegador: ${clientMs} ms</p>
+        ${data.warnings && data.warnings.length ? `<div class="warnings">${data.warnings.map(esc).join('<br>')}</div>` : ''}
+        <h2 style="margin-top:18px">Respuesta JSON consolidada</h2>
+        <pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
+    } catch (e) {
+      detail.innerHTML = `<div class="warnings">La Composite API no respondió (${esc(e.message)}).</div>`;
+    }
+  }
+
+  document.getElementById('custom-id').addEventListener('keydown', e => { if (e.key === 'Enter') loadSummary(e.target.value); });
+  loadProducts();
+</script>
+</body>
+</html>
