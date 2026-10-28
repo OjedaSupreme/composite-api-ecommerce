@@ -77,7 +77,7 @@ G checkout -q develop
 G merge -q --no-ff main -m "Merge release 1.0.0 back into develop"
 G checkout -q main
 Write-Host "`nHistorial Gitflow creado:" -ForegroundColor Green
-git log --oneline --graph --all -n 40
+git --no-pager log --oneline --graph --all -n 40
 
 # --- Publicar en GitHub ----------------------------------------------------
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
